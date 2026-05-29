@@ -16,42 +16,37 @@ const galleryItems = [
   { id: 12, type: "image", src: "/images/image12.jpg", alt: "Patient Treatment Room", title: "Patient Treatment Room", category: "Clinical Practice" },
   { id: 13, type: "image", src: "/images/image13.jpg", alt: "Research Presentation", title: "Therapy Room", category: "Clinical Practice" },
   { id: 14, type: "image", src: "/images/image14.jpg", alt: "Naturopathy Treatment", title: "Naturopathy Treatment", category: "Clinical Practice" },
-  
-  
+
   // Video
   { 
     id: 15, 
-    type: "video", 
-    src: "/images/main.mp4", 
+    type: "vimeo", 
+    videoUrl: "https://player.vimeo.com/video/1196582717", 
     poster: "/images/main.jpg", 
-    alt: "Award Ceremony Video", 
+    title: "Maharashtra Business Icon Award 2025 - Full Video", 
+    category: "Achievements" 
+  },
+   { 
+    id: 16, 
+    type: "vimeo", 
+    videoUrl: "https://player.vimeo.com/video/1196577539", 
+    poster: "/images/main.jpg", 
     title: "Maharashtra Business Icon Award 2025 - Full Video", 
     category: "Achievements" 
   },
     { 
-    id: 16, 
-    type: "video", 
-    src: "/images/pathy.mp4", 
-    poster: "/images/image16.jpg", 
-    alt: "Award Ceremony Video", 
-    title: "Maharashtra Business Icon Award 2025 - Full Video", 
-    category: "Achievements" 
-  },
-      { 
-    id: 17, 
-    type: "video", 
-    src: "/images/video3.mp4", 
-    poster: "/images/image16.jpg", 
-    alt: "Award Ceremony Video", 
-    title: "Maharashtra Business Icon Award 2025 - Full Video", 
-    category: "Achievements" 
-  },
+      id: 17, 
+      type: "vimeo", 
+      videoUrl: "https://player.vimeo.com/video/1196582718",   
+      poster: "/images/image16.jpg", 
+      title: "Maharashtra Business Icon Award 2025 - Full Video", 
+      category: "Campus Life" 
+    },
       { 
     id: 18, 
-    type: "video", 
-    src: "/images/video4.mp4", 
+    type: "vimeo", 
+    videoUrl: "https://player.vimeo.com/video/1196582716", 
     poster: "/images/image16.jpg", 
-    alt: "Award Ceremony Video", 
     title: "Maharashtra Business Icon Award 2025 - Full Video", 
     category: "Achievements" 
   },
@@ -95,6 +90,7 @@ const galleryItems = [
   { id: 55, type: "image", src: "/images/img55.jpg", alt: "Naturopathy Treatment", title: "Naturopathy Treatment", category: "Clinical Practice" },
 ];
 
+
 function Gallery() {
   const [selectedIndex, setSelectedIndex] = useState(null);
 
@@ -114,14 +110,9 @@ function Gallery() {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (selectedIndex === null) return;
-
-      if (e.key === "ArrowLeft") {
-        setSelectedIndex(prev => (prev === 0 ? galleryItems.length - 1 : prev - 1));
-      } else if (e.key === "ArrowRight") {
-        setSelectedIndex(prev => (prev === galleryItems.length - 1 ? 0 : prev + 1));
-      } else if (e.key === "Escape") {
-        setSelectedIndex(null);
-      }
+      if (e.key === "ArrowLeft") goToPrev();
+      if (e.key === "ArrowRight") goToNext();
+      if (e.key === "Escape") setSelectedIndex(null);
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -150,38 +141,31 @@ function Gallery() {
                 onClick={() => setSelectedIndex(idx)}
                 className="group relative overflow-hidden rounded-2xl cursor-pointer shadow-sm hover:shadow-xl transition-all duration-300"
               >
-                {item.type === "image" ? (
-                  <img
-                    src={item.src}
-                    alt={item.alt}
-                    className="w-full h-80 object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                ) : (
-                  <video
-                    src={item.src}
-                    poster={item.poster}
-                    className="w-full h-80 object-cover"
-                    muted
-                  />
+                <img
+                  src={item.poster || item.src}
+                  alt={item.title}
+                  className="w-full h-80 object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+
+                {item.type === "vimeo" && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                    <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center">
+                      <span className="text-white text-4xl">▶</span>
+                    </div>
+                  </div>
                 )}
 
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-5">
                   <p className="text-white font-semibold text-lg">{item.title}</p>
                   <p className="text-green-300 text-sm">{item.category}</p>
                 </div>
-
-                {item.type === "video" && (
-                  <div className="absolute top-4 right-4 bg-black/60 text-white text-xs px-3 py-1 rounded-full flex items-center gap-1">
-                    ▶ VIDEO
-                  </div>
-                )}
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Lightbox Modal with Left/Right Navigation */}
+      {/* Lightbox Modal */}
       {selectedItem && (
         <div 
           className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-4" 
@@ -189,54 +173,33 @@ function Gallery() {
         >
           <div className="max-w-5xl w-full relative" onClick={e => e.stopPropagation()}>
 
-            {/* Navigation Arrows */}
-            <button
-              onClick={goToPrev}
-              className="absolute -left-6 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 w-12 h-12 rounded-full flex items-center justify-center shadow-xl z-10 text-3xl"
-            >
-              ←
-            </button>
+            <button onClick={goToPrev} className="absolute -left-6 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 w-12 h-12 rounded-full flex items-center justify-center shadow-xl z-10 text-3xl">←</button>
+            <button onClick={goToNext} className="absolute -right-6 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 w-12 h-12 rounded-full flex items-center justify-center shadow-xl z-10 text-3xl">→</button>
 
-            <button
-              onClick={goToNext}
-              className="absolute -right-6 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 w-12 h-12 rounded-full flex items-center justify-center shadow-xl z-10 text-3xl"
-            >
-              →
-            </button>
-
-            {/* Content */}
             {selectedItem.type === "image" ? (
               <img
                 src={selectedItem.src}
-                alt={selectedItem.alt}
+                alt={selectedItem.title}
                 className="w-full rounded-2xl shadow-2xl max-h-[85vh] object-contain"
               />
             ) : (
-              <video
-                src={selectedItem.src}
-                controls
-                autoPlay
-                className="w-full rounded-2xl shadow-2xl max-h-[85vh]"
-              />
+              <iframe
+                src={selectedItem.videoUrl}
+                width="100%"
+                height="560"
+                frameBorder="0"
+                allow="autoplay; fullscreen; picture-in-picture"
+                allowFullScreen
+                className="w-full rounded-2xl shadow-2xl aspect-video"
+              ></iframe>
             )}
 
-            {/* Info */}
             <div className="text-center mt-6">
               <p className="text-white text-2xl font-medium">{selectedItem.title}</p>
               <p className="text-green-300 text-sm mt-1">{selectedItem.category}</p>
             </div>
 
-            {/* Close Button */}
-            <button
-              onClick={() => setSelectedIndex(null)}
-              className="absolute -top-4 -right-4 bg-white text-gray-800 w-10 h-10 rounded-full flex items-center justify-center text-xl shadow-xl hover:bg-gray-100"
-            >
-              ✕
-            </button>
-            {/* Keyboard Hint */}
-            <p className="text-center text-white/40 text-xs mt-4">
-              ← → Arrow Keys to navigate • ESC to close
-            </p>
+            <button onClick={() => setSelectedIndex(null)} className="absolute -top-4 -right-4 bg-white text-gray-800 w-10 h-10 rounded-full flex items-center justify-center text-xl shadow-xl hover:bg-gray-100">✕</button>
           </div>
         </div>
       )}
