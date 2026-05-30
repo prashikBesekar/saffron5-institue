@@ -228,21 +228,22 @@ function CourseDetail() {
               </div>
             </div>
 
-            {/* CourseContent INSIDE */}
-            {course.modules && (
-              <div className="bg-white rounded-2xl p-6 border border-gray-100">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-2xl">🎬</span>
-                  <h2 className="text-lg font-bold text-gray-900">
-                    Course Content
-                  </h2>
-                </div>
-                <CourseContent
-                  modules={course.modules}
-                  isEnrolled={isEnrolled}
-                />
-              </div>
-            )}
+         {/* Course Content */}
+{(course.modules || true) && (
+  <div className="bg-white rounded-2xl p-6 border border-gray-100">
+    <div className="flex items-center gap-2 mb-4">
+      <span className="text-2xl">🎬</span>
+      <h2 className="text-lg font-bold text-gray-900">
+        Course Content
+      </h2>
+    </div>
+    <CourseContent
+      courseSlug={course.slug}
+      isEnrolled={isEnrolled}
+      staticModules={course.modules}
+    />
+  </div>
+)}
 
           </div>
           {/* END LEFT COLUMN */}

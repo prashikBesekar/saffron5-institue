@@ -22,6 +22,92 @@ function AdminDashboard() {
   const [search, setSearch] = useState('')
   const [enrollingId, setEnrollingId] = useState(null)
 
+  const [selectedCourse, setSelectedCourse] = useState(null)
+  const [courseModules, setCourseModules] = useState([])
+  const [newModule, setNewModule] = useState('')
+  const [newLesson, setNewLesson] = useState({
+    moduleId: '',
+    title: '',
+    type: 'video',
+    duration: '',
+    videoUrl: '',
+    videoSource: 'youtube',
+    fileUrl: '',
+    preview: false,
+  })
+  const [videoLoading, setVideoLoading] = useState(false)
+
+  const loadCourseModules = async (slug) => {
+    try {
+      setVideoLoading(true)
+      const data = await api(`/course-content/${slug}`, 'GET', null, token)
+      setCourseModules(data.modules || [])
+    } catch (err) {
+      setCourseModules([])
+    } finally {
+      setVideoLoading(false)
+    }
+  }
+
+  const addModule = async (courseSlug, courseTitle) => {
+    if (!newModule.trim()) return alert('Enter module title!')
+    try {
+      await api(`/course-content/${courseSlug}/module`, 'POST', {
+        courseTitle,
+        moduleTitle: newModule,
+      }, token)
+      setNewModule('')
+      await loadCourseModules(courseSlug)
+      alert('✅ Module added!')
+    } catch (err) {
+      alert('Failed: ' + err.message)
+    }
+  }
+
+  const addLesson = async (courseSlug) => {
+    if (!newLesson.moduleId) return alert('Select a module!')
+    if (!newLesson.title) return alert('Enter lesson title!')
+    if (newLesson.type === 'video' && !newLesson.videoUrl) return alert('Enter video URL!')
+
+    try {
+      await api(
+        `/course-content/${courseSlug}/module/${newLesson.moduleId}/lesson`,
+        'POST',
+        newLesson,
+        token
+      )
+      setNewLesson({
+        moduleId: newLesson.moduleId,
+        title: '',
+        type: 'video',
+        duration: '',
+        videoUrl: '',
+        videoSource: 'youtube',
+        fileUrl: '',
+        preview: false,
+      })
+      await loadCourseModules(courseSlug)
+      alert('✅ Video added!')
+    } catch (err) {
+      alert('Failed: ' + err.message)
+    }
+  }
+
+  const deleteLesson = async (courseSlug, moduleId, lessonId) => {
+    if (!window.confirm('Delete this lesson?')) return
+    try {
+      await api(
+        `/course-content/${courseSlug}/module/${moduleId}/lesson/${lessonId}`,
+        'DELETE',
+        null,
+        token
+      )
+      await loadCourseModules(courseSlug)
+    } catch (err) {
+      alert('Failed to delete.')
+    }
+  }
+
   useEffect(() => {
     loadData()
   }, [])
@@ -70,12 +156,10 @@ function AdminDashboard() {
         courseName: app.course,
       }, token)
 
-      // Update applications list immediately in UI
       setApplications(prev =>
         prev.map(a => a._id === app._id ? { ...a, status: 'enrolled' } : a)
       )
 
-      // Reload students list to reflect new status
       const studentsData = await api('/admin/students', 'GET', null, token)
       setStudents(studentsData.students)
 
@@ -92,7 +176,6 @@ function AdminDashboard() {
     navigate('/')
   }
 
-  // Search across all fields
   const filteredApps = applications.filter(app =>
     app.name?.toLowerCase().includes(search.toLowerCase()) ||
     app.phone?.includes(search) ||
@@ -206,6 +289,7 @@ function AdminDashboard() {
           {[
             { key: 'applications', label: '📋 Applications' },
             { key: 'students', label: '👥 Students' },
+            { key: 'courses', label: '🎬 Manage Videos' },
           ].map(t => (
             <button
               key={t.key}
@@ -512,9 +596,333 @@ function AdminDashboard() {
               </div>
             )}
 
+            {/* Manage Videos Tab */}
+            {tab === 'courses' && (
+              <div className="flex flex-col gap-6">
+
+                {/* Course Selector */}
+                <div className="bg-white rounded-2xl p-6 border border-gray-100">
+                  <h2 className="font-bold text-gray-900 text-base mb-4">
+                    🎬 Select Course to Manage Videos
+                  </h2>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {[
+                      { slug: 'diploma-naturopathy', title: 'Diploma N.D.' },
+                      { slug: 'bachelor-asm', title: 'B.A.S.M.' },
+                      { slug: 'md-naturopathy', title: 'M.D.' },
+                      { slug: 'phd-naturopathy', title: 'PhD' },
+                      { slug: 'bnys', title: 'BNYS' },
+                      { slug: 'dnys', title: 'DNYS' },
+                      { slug: 'nutrition-consultancy', title: 'Nutrition' },
+                      { slug: 'dietetics-consultancy', title: 'Dietetics' },
+                      { slug: 'dmlt', title: 'DMLT' },
+                      { slug: 'bpt', title: 'BPT' },
+                      { slug: 'cms-ed', title: 'CMS & ED' },
+                      { slug: 'bams', title: 'BAMS' },
+                      { slug: 'general-health', title: 'General Health' },
+                      { slug: 'food-new-medicine', title: 'Food Medicine' },
+                      { slug: 'speciality-diabetes', title: 'Diabetes' },
+                    ].map(course => (
+                      <button
+                        key={course.slug}
+                        onClick={() => {
+                          setSelectedCourse(course)
+                          loadCourseModules(course.slug)
+                        }}
+                        className={`p-3 rounded-xl border text-xs font-semibold text-left transition-all
+                          ${selectedCourse?.slug === course.slug
+                            ? 'bg-green-700 text-white border-green-700'
+                            : 'bg-gray-50 text-gray-700 border-gray-200 hover:border-green-400'
+                          }`}
+                      >
+                        {course.title}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Video Manager */}
+                {selectedCourse && (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                    {/* Left — Add Module & Video */}
+                    <div className="flex flex-col gap-5">
+
+                      {/* Add Module */}
+                      <div className="bg-white rounded-2xl p-6 border border-gray-100">
+                        <h3 className="font-bold text-gray-900 text-sm mb-4">
+                          ➕ Add New Module
+                        </h3>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={newModule}
+                            onChange={e => setNewModule(e.target.value)}
+                            placeholder="Module name (e.g. Naturopathy Basics)"
+                            className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-green-500"
+                          />
+                          <button
+                            onClick={() => addModule(selectedCourse.slug, selectedCourse.title)}
+                            className="bg-green-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-green-800 transition-colors"
+                          >
+                            Add
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Add Video/Lesson */}
+                      <div className="bg-white rounded-2xl p-6 border border-gray-100">
+                        <h3 className="font-bold text-gray-900 text-sm mb-4">
+                          🎥 Add Video or Assignment
+                        </h3>
+                        <div className="flex flex-col gap-3">
+
+                          {/* Select Module */}
+                          <div>
+                            <label className="text-xs font-semibold text-gray-500 block mb-1">
+                              Select Module *
+                            </label>
+                            {courseModules.length === 0 ? (
+                              <div className="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5 text-xs text-amber-700">
+                                ⚠️ No modules yet — add a module first using the form above!
+                              </div>
+                            ) : (
+                              <select
+                                value={newLesson.moduleId}
+                                onChange={e => setNewLesson({ ...newLesson, moduleId: e.target.value })}
+                                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-green-500 bg-white"
+                              >
+                                <option value="">Choose module...</option>
+                                {courseModules.map(m => (
+                                  <option key={m._id} value={m._id}>{m.title}</option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+
+                          {/* Lesson Type */}
+                          <div>
+                            <label className="text-xs font-semibold text-gray-500 block mb-1">
+                              Type
+                            </label>
+                            <div className="flex gap-2">
+                              {['video', 'assignment'].map(t => (
+                                <button
+                                  key={t}
+                                  onClick={() => setNewLesson({ ...newLesson, type: t })}
+                                  className={`flex-1 py-2 rounded-xl text-xs font-semibold capitalize transition-all
+                                    ${newLesson.type === t
+                                      ? 'bg-green-700 text-white'
+                                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                    }`}
+                                >
+                                  {t === 'video' ? '🎥 Video' : '📝 Assignment'}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Title */}
+                          <div>
+                            <label className="text-xs font-semibold text-gray-500 block mb-1">
+                              Lesson Title *
+                            </label>
+                            <input
+                              type="text"
+                              value={newLesson.title}
+                              onChange={e => setNewLesson({ ...newLesson, title: e.target.value })}
+                              placeholder="e.g. Introduction to Naturopathy"
+                              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-green-500"
+                            />
+                          </div>
+
+                          {newLesson.type === 'video' && (
+                            <>
+                              {/* Video Source */}
+                              <div>
+                                <label className="text-xs font-semibold text-gray-500 block mb-1">
+                                  Video Source
+                                </label>
+                                <select
+                                  value={newLesson.videoSource}
+                                  onChange={e => setNewLesson({ ...newLesson, videoSource: e.target.value })}
+                                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-green-500 bg-white"
+                                >
+                                  <option value="youtube">YouTube</option>
+                                  <option value="googledrive">Google Drive</option>
+                                  <option value="vimeo">Vimeo</option>
+                                  <option value="direct">Direct MP4 Link</option>
+                                </select>
+                              </div>
+
+                              {/* Video URL */}
+                              <div>
+                                <label className="text-xs font-semibold text-gray-500 block mb-1">
+                                  Video URL *
+                                </label>
+                                <input
+                                  type="text"
+                                  value={newLesson.videoUrl}
+                                  onChange={e => setNewLesson({ ...newLesson, videoUrl: e.target.value })}
+                                  placeholder={
+                                    newLesson.videoSource === 'youtube'
+                                      ? 'https://youtube.com/watch?v=...'
+                                      : newLesson.videoSource === 'googledrive'
+                                        ? 'https://drive.google.com/file/d/...'
+                                        : 'Paste video URL here'
+                                  }
+                                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-green-500"
+                                />
+                                <p className="text-xs text-gray-400 mt-1">
+                                  {newLesson.videoSource === 'youtube' && '💡 Paste full YouTube URL — ID extracted automatically'}
+                                  {newLesson.videoSource === 'googledrive' && '💡 Make sure file is set to "Anyone with link can view"'}
+                                  {newLesson.videoSource === 'vimeo' && '💡 Paste Vimeo video ID or full URL'}
+                                </p>
+                              </div>
+
+                              {/* Duration */}
+                              <div>
+                                <label className="text-xs font-semibold text-gray-500 block mb-1">
+                                  Duration (optional)
+                                </label>
+                                <input
+                                  type="text"
+                                  value={newLesson.duration}
+                                  onChange={e => setNewLesson({ ...newLesson, duration: e.target.value })}
+                                  placeholder="e.g. 08:29"
+                                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-green-500"
+                                />
+                              </div>
+                            </>
+                          )}
+
+                          {newLesson.type === 'assignment' && (
+                            <div>
+                              <label className="text-xs font-semibold text-gray-500 block mb-1">
+                                File URL (Google Drive / PDF link)
+                              </label>
+                              <input
+                                type="text"
+                                value={newLesson.fileUrl}
+                                onChange={e => setNewLesson({ ...newLesson, fileUrl: e.target.value })}
+                                placeholder="https://drive.google.com/..."
+                                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-green-500"
+                              />
+                            </div>
+                          )}
+
+                          {/* Free Preview Toggle */}
+                          <label className="flex items-center gap-3 cursor-pointer">
+                            <div
+                              onClick={() => setNewLesson({ ...newLesson, preview: !newLesson.preview })}
+                              className={`w-10 h-6 rounded-full transition-colors relative ${newLesson.preview ? 'bg-green-600' : 'bg-gray-300'}`}
+                            >
+                              <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow ${newLesson.preview ? 'left-5' : 'left-1'}`} />
+                            </div>
+                            <span className="text-xs font-semibold text-gray-600">
+                              Free Preview (visible without enrollment)
+                            </span>
+                          </label>
+
+                          {/* Submit */}
+                          <button
+                            onClick={() => addLesson(selectedCourse.slug)}
+                            className="w-full bg-green-700 hover:bg-green-800 text-white font-bold text-sm py-3 rounded-xl transition-colors"
+                          >
+                            ➕ Add to Course
+                          </button>
+
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right — Current Modules & Videos */}
+                    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                      <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                        <div>
+                          <h3 className="font-bold text-gray-900 text-sm">
+                            Current Content — {selectedCourse.title}
+                          </h3>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {courseModules.length} modules ·{' '}
+                            {courseModules.reduce((acc, m) => acc + (m.lessons?.length || 0), 0)} lessons
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => loadCourseModules(selectedCourse.slug)}
+                          className="text-xs text-green-600 hover:underline"
+                        >
+                          🔄 Refresh
+                        </button>
+                      </div>
+
+                      {videoLoading ? (
+                        <div className="p-8 text-center">
+                          <p className="text-gray-400 text-sm">⏳ Loading...</p>
+                        </div>
+                      ) : courseModules.length === 0 ? (
+                        <div className="p-8 text-center">
+                          <p className="text-4xl mb-2">📭</p>
+                          <p className="text-gray-400 text-sm">No content added yet.</p>
+                          <p className="text-gray-300 text-xs mt-1">Add a module first, then add videos.</p>
+                        </div>
+                      ) : (
+                        <div className="max-h-96 overflow-y-auto divide-y divide-gray-50">
+                          {courseModules.map(module => (
+                            <div key={module._id} className="p-4">
+                              <div className="flex items-center justify-between mb-2">
+                                <p className="font-bold text-gray-800 text-sm">
+                                  📁 {module.title}
+                                </p>
+                                <span className="text-xs text-gray-400">
+                                  {module.lessons?.length || 0} lessons
+                                </span>
+                              </div>
+
+                              {module.lessons?.map(lesson => (
+                                <div
+                                  key={lesson._id}
+                                  className="flex items-center gap-2 ml-3 py-1.5 border-b border-gray-50 last:border-0"
+                                >
+                                  <span className="text-xs">
+                                    {lesson.type === 'video' ? '🎥' : '📝'}
+                                  </span>
+                                  <div className="flex-1">
+                                    <p className="text-xs text-gray-700 font-medium">
+                                      {lesson.title}
+                                      {lesson.preview && (
+                                        <span className="ml-1 text-green-600">(Preview)</span>
+                                      )}
+                                    </p>
+                                    <p className="text-xs text-gray-400">
+                                      {lesson.videoSource} · {lesson.duration || 'No duration'}
+                                    </p>
+                                  </div>
+                                  <button
+                                    onClick={() => deleteLesson(selectedCourse.slug, module._id, lesson._id)}
+                                    className="text-red-400 hover:text-red-600 text-xs px-2 py-1 rounded-lg hover:bg-red-50 transition-colors flex-shrink-0"
+                                  >
+                                    🗑️
+                                  </button>
+                                </div>
+                              ))}
+
+                              {(!module.lessons || module.lessons.length === 0) && (
+                                <p className="text-xs text-gray-300 ml-3">No lessons yet</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+                )}
+              </div>
+            )}
+
           </>
         )}
-
       </div>
     </div>
   )
