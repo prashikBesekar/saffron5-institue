@@ -22,11 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
-node_modules/
-dist/
-build/
-
 *.mp4
 *.mov
 *.zip

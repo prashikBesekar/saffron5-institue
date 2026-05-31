@@ -305,7 +305,7 @@ function Footer() {
       <div className="border-t border-gray-800/60">
         <div className="max-w-7xl mx-auto px-5 py-4 flex flex-col md:flex-row items-center justify-between gap-2">
           <p className="text-xs text-gray-600">
-            © 2025 Saffron5 Health Institute. All rights reserved.
+            © 2026 Saffron5 Health Institute. All rights reserved.
           </p>
           <p className="text-xs text-gray-700 text-center">
             Reg. Trust: Saffron Educational & Medical Foundation —{" "}

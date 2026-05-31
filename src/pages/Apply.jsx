@@ -95,7 +95,7 @@ function MobileSelect({ value, onChange, options, placeholder, searchable = true
         </svg>
       </button>
 
-      {/* ── Mobile bottom sheet ── */}
+      {/* Mobile bottom sheet */}
       {sheetOpen && (
         <div className="sm:hidden">
           {/* Overlay */}
@@ -183,7 +183,7 @@ function MobileSelect({ value, onChange, options, placeholder, searchable = true
         </div>
       )}
 
-      {/* ── Desktop dropdown ── */}
+      {/*  Desktop dropdown  */}
       {sheetOpen && (
         <div className="hidden sm:block relative z-30">
           {/* Click-away */}
@@ -253,7 +253,6 @@ function MobileSelect({ value, onChange, options, placeholder, searchable = true
     </div>
   );
 }
-// ─────────────────────────────────────────────────────────────────────────────
 
 function Apply() {
   const formRef = useRef();
@@ -589,7 +588,7 @@ function Apply() {
                     </div>
                   )}
 
-                  {/* ── Qualification — bottom sheet on mobile ── */}
+                  {/*  Qualification — bottom sheet on mobile  */}
                   <div>
                     <label className="text-xs font-semibold text-gray-500 block mb-1.5">
                       Highest Qualification *

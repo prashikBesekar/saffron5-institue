@@ -41,6 +41,7 @@ function CoursesSection() {
               <Link
                 key={course.id}
                 to={`/courses/${course.slug}`}
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
                 className={`group flex flex-col bg-white rounded-2xl p-6 border border-gray-100 ${style.accent} hover:shadow-md transition-all duration-300`}
               >
                 {/* Icon + duration row */}
@@ -80,6 +81,7 @@ function CoursesSection() {
         <div className="text-center mt-10">
           <Link
             to="/courses"
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             className="inline-flex items-center gap-2 bg-green-700 text-white font-semibold px-8 py-3.5 rounded-xl hover:bg-green-800 active:scale-95 transition-all shadow-sm shadow-green-200"
           >
             View All Courses

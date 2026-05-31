@@ -6,8 +6,8 @@ import { useNavigate } from "react-router-dom";
 
 function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [coursesOpenDesktop, setCoursesOpenDesktop] = useState(false); // Desktop
-  const [coursesOpenMobile, setCoursesOpenMobile] = useState(false); // Mobile
+  const [coursesOpenDesktop, setCoursesOpenDesktop] = useState(false);
+  const [coursesOpenMobile, setCoursesOpenMobile] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
   const location = useLocation();
@@ -52,6 +52,14 @@ function Navbar() {
     closeAll();
   }, [location.pathname]);
 
+  // Close courses dropdown on scroll (Desktop)
+  useEffect(() => {
+    if (!coursesOpenDesktop) return;
+    const handleScroll = () => setCoursesOpenDesktop(false);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [coursesOpenDesktop]);
+
   const navLinks = [
     { label: "Home", path: "/" },
     { label: "About Us", path: "/about" },
@@ -66,16 +74,18 @@ function Navbar() {
 
   return (
     <nav
-      className={`bg-white sticky top-0 z-50 transition-shadow duration-300 ${scrolled ? "shadow-md" : "border-b border-gray-100"}`}
+      className={`bg-white sticky top-0 z-50 transition-shadow duration-300 ${
+        scrolled ? "shadow-md" : "border-b border-gray-100"
+      }`}
     >
       <div className="max-w-7xl mx-auto px-5 py-3.5 flex items-center justify-between">
         {/* Logo */}
         <Link
           to="/"
-         onClick={() => {
-                closeAll();
-                scrollToTop();
-              }}
+          onClick={() => {
+            closeAll();
+            scrollToTop();
+          }}
           className="flex items-center gap-3 group"
         >
           <img
@@ -115,7 +125,6 @@ function Navbar() {
             <button
               onClick={() => {
                 setCoursesOpenDesktop(!coursesOpenDesktop);
-                scrollToTop();
               }}
               className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                 coursesOpenDesktop
@@ -125,7 +134,9 @@ function Navbar() {
             >
               Courses
               <svg
-                className={`transition-transform duration-200 ${coursesOpenDesktop ? "rotate-180" : ""}`}
+                className={`transition-transform duration-200 ${
+                  coursesOpenDesktop ? "rotate-180" : ""
+                }`}
                 width="14"
                 height="14"
                 viewBox="0 0 24 24"
@@ -138,13 +149,13 @@ function Navbar() {
             </button>
 
             {coursesOpenDesktop && (
-              <div className="absolute top-full mt-2 left-0 bg-white rounded-2xl w-80 z-50 border border-gray-100 overflow-hidden shadow-xl shadow-gray-200/60">
+              <div className="absolute top-full mt-2 left-0 bg-white rounded-2xl w-80 z-50 border border-gray-100 overflow-y-auto shadow-xl shadow-gray-200/60 max-h-[calc(100vh-120px)]">
                 <div className="px-3 py-2 border-b border-gray-50">
                   <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">
                     All Programs
                   </p>
                 </div>
-                <div className="max-h-72 overflow-y-auto">
+                <div>
                   {courses.map((course) => (
                     <Link
                       key={course.id}
@@ -182,7 +193,7 @@ function Navbar() {
                   navigate(
                     role === "admin"
                       ? "/admin/dashboard"
-                      : "/student/dashboard",
+                      : "/student/dashboard"
                   )
                 }
                 className="text-sm font-medium text-green-700 hover:text-green-800"
@@ -215,19 +226,25 @@ function Navbar() {
           )}
         </div>
 
-        {/* Hamburger */}
+        {/* Hamburger Menu Button */}
         <button
           className="lg:hidden flex flex-col justify-center gap-[5px] w-9 h-9 rounded-lg hover:bg-gray-50 transition-colors"
           onClick={() => setMenuOpen(!menuOpen)}
         >
           <span
-            className={`block w-5 h-0.5 bg-gray-700 rounded-full mx-auto transition-all duration-300 ${menuOpen ? "rotate-45 translate-y-[7px]" : ""}`}
+            className={`block w-5 h-0.5 bg-gray-700 rounded-full mx-auto transition-all duration-300 ${
+              menuOpen ? "rotate-45 translate-y-[7px]" : ""
+            }`}
           />
           <span
-            className={`block w-5 h-0.5 bg-gray-700 rounded-full mx-auto transition-all duration-300 ${menuOpen ? "opacity-0 scale-x-0" : ""}`}
+            className={`block w-5 h-0.5 bg-gray-700 rounded-full mx-auto transition-all duration-300 ${
+              menuOpen ? "opacity-0 scale-x-0" : ""
+            }`}
           />
           <span
-            className={`block w-5 h-0.5 bg-gray-700 rounded-full mx-auto transition-all duration-300 ${menuOpen ? "-rotate-45 -translate-y-[7px]" : ""}`}
+            className={`block w-5 h-0.5 bg-gray-700 rounded-full mx-auto transition-all duration-300 ${
+              menuOpen ? "-rotate-45 -translate-y-[7px]" : ""
+            }`}
           />
         </button>
       </div>
@@ -239,21 +256,30 @@ function Navbar() {
             <Link
               key={link.path}
               to={link.path}
-              onClick={scrollToTop}
-              className={`flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${isActive(link.path) ? "bg-green-50 text-green-700" : "text-gray-700 hover:bg-gray-50"}`}
+              onClick={() => {
+                scrollToTop();
+                closeAll();
+              }}
+              className={`flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                isActive(link.path)
+                  ? "bg-green-50 text-green-700"
+                  : "text-gray-700 hover:bg-gray-50"
+              }`}
             >
               {link.label}
             </Link>
           ))}
 
-          {/* Mobile Courses */}
+          {/* Mobile Courses Dropdown */}
           <button
             onClick={() => setCoursesOpenMobile(!coursesOpenMobile)}
             className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 w-full transition-colors"
           >
             Courses
             <svg
-              className={`transition-transform duration-200 ${coursesOpenMobile ? "rotate-180" : ""}`}
+              className={`transition-transform duration-200 ${
+                coursesOpenMobile ? "rotate-180" : ""
+              }`}
               width="14"
               height="14"
               viewBox="0 0 24 24"
@@ -266,12 +292,15 @@ function Navbar() {
           </button>
 
           {coursesOpenMobile && (
-            <div className="ml-4 flex flex-col gap-1 border-l-2 border-green-100 pl-4">
+            <div className="ml-4 flex flex-col gap-1 border-l-2 border-green-100 pl-4 max-h-60 overflow-y-auto">
               {courses.map((course) => (
                 <Link
                   key={course.id}
                   to={`/courses/${course.slug}`}
-                  onClick={scrollToTop}
+                  onClick={() => {
+                    scrollToTop();
+                    closeAll();
+                  }}
                   className="py-2 text-sm text-gray-600 hover:text-green-700 transition-colors"
                 >
                   {course.title}
@@ -282,17 +311,64 @@ function Navbar() {
 
           <div className="border-t border-gray-100 my-2" />
 
-          <Link
-            to="/apply"
-            onClick={scrollToTop}
-            className="bg-green-700 text-white text-center px-5 py-3 rounded-xl text-sm font-semibold hover:bg-green-800"
-          >
-            Apply Now
-          </Link>
+          {/* Mobile User Menu */}
+          {user ? (
+            <>
+              <button
+                onClick={() => {
+                  navigate(
+                    role === "admin"
+                      ? "/admin/dashboard"
+                      : "/student/dashboard"
+                  );
+                  closeAll();
+                }}
+                className="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium text-green-700 hover:bg-green-50 transition-colors"
+              >
+                👤 {user.name?.split(" ")[0]}
+              </button>
+              <button
+                onClick={handleLogout}
+                className="w-full border border-green-200 text-green-700 px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-green-50 transition-colors"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                to="/login"
+                onClick={() => {
+                  closeAll();
+                  scrollToTop();
+                }}
+                className="w-full text-center px-5 py-2.5 rounded-xl text-sm font-medium text-green-700 hover:bg-green-50 transition-colors"
+              >
+                Login
+              </Link>
+              <Link
+                to="/apply"
+                onClick={() => {
+                  closeAll();
+                  scrollToTop();
+                }}
+                className="w-full bg-green-700 text-white text-center px-5 py-3 rounded-xl text-sm font-semibold hover:bg-green-800 transition-colors"
+              >
+                Apply Now
+              </Link>
+            </>
+          )}
+
+          <div className="border-t border-gray-100 my-2" />
+
+          {/* Contact Link */}
           <Link
             to="/contact"
-            onClick={scrollToTop}
-            className="text-center px-5 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50"
+            onClick={() => {
+              scrollToTop();
+              closeAll();
+            }}
+            className="text-center px-5 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
           >
             Talk to us
           </Link>

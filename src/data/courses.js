@@ -7,8 +7,8 @@ const courses = [
     mode: 'Distance Learning',
     eligibility: '10+2 Pass',
     fee: '₹4,00,000',
-    originalFee: '₹60,000',
-    discount: '25',
+    // originalFee: '₹60,000',
+    // discount: '25',
     description: '1 Year practice & become a certified Naturopath Practitioner. All students must practice according to the laws of Government & Central Medical Education Board.',
     color: 'green',
     curriculum: [

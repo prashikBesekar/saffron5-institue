@@ -28,10 +28,34 @@ function Register() {
   })
   const [status, setStatus] = useState('idle')
   const [errorMsg, setErrorMsg] = useState('')
+  const [courseModalOpen, setCourseModalOpen] = useState(false)
+  const [stateModalOpen, setStateModalOpen] = useState(false)
+  const [searchCourse, setSearchCourse] = useState('')
+  const [searchState, setSearchState] = useState('')
 
   const handleChange = e => {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
+
+  const handleSelectCourse = (courseTitle) => {
+    setForm({ ...form, course: courseTitle })
+    setCourseModalOpen(false)
+    setSearchCourse('')
+  }
+
+  const handleSelectState = (stateName) => {
+    setForm({ ...form, state: stateName })
+    setStateModalOpen(false)
+    setSearchState('')
+  }
+
+  const filteredCourses = courses.filter(c =>
+    c.title.toLowerCase().includes(searchCourse.toLowerCase())
+  )
+
+  const filteredStates = states.filter(s =>
+    s.toLowerCase().includes(searchState.toLowerCase())
+  )
 
   const handleSubmit = async e => {
     e.preventDefault()
@@ -139,38 +163,62 @@ function Register() {
               </div>
             </div>
 
+            {/* Course - Desktop Select / Mobile Bottom Sheet */}
             <div>
               <label className="text-xs font-semibold text-gray-500 block mb-1.5">
                 Interested Course
               </label>
+              {/* Desktop */}
               <select
                 name="course"
                 value={form.course}
                 onChange={handleChange}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-500 transition-colors bg-white"
+                className="hidden sm:block w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-500 transition-colors bg-white"
               >
                 <option value="">Select a course</option>
                 {courses.map(c => (
                   <option key={c.id} value={c.title}>{c.title}</option>
                 ))}
               </select>
+              {/* Mobile - Button to trigger modal */}
+              <button
+                type="button"
+                onClick={() => setCourseModalOpen(true)}
+                className="sm:hidden w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-left focus:outline-none focus:border-green-500 transition-colors bg-white hover:border-green-300 flex items-center justify-between"
+              >
+                <span className={form.course ? 'text-gray-900' : 'text-gray-400'}>
+                  {form.course || 'Select a course'}
+                </span>
+              </button>
             </div>
 
+            {/* State - Desktop Select / Mobile Bottom Sheet */}
             <div>
               <label className="text-xs font-semibold text-gray-500 block mb-1.5">
                 State
               </label>
+              {/* Desktop */}
               <select
                 name="state"
                 value={form.state}
                 onChange={handleChange}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-500 transition-colors bg-white"
+                className="hidden sm:block w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-500 transition-colors bg-white "
               >
                 <option value="">Select your state</option>
                 {states.map(s => (
                   <option key={s}>{s}</option>
                 ))}
               </select>
+              {/* Mobile - Button to trigger modal */}
+              <button
+                type="button"
+                onClick={() => setStateModalOpen(true)}
+                className="sm:hidden w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-left focus:outline-none focus:border-green-500 transition-colors bg-white hover:border-green-300 flex items-center justify-between"
+              >
+                <span className={form.state ? 'text-gray-900' : 'text-gray-400'}>
+                  {form.state || 'Select your state'}
+                </span>
+              </button>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -240,6 +288,145 @@ function Register() {
           </Link>
         </p>
       </div>
+
+      {/* Course Bottom Sheet Modal */}
+      {courseModalOpen && (
+        <div className="sm:hidden fixed inset-0 z-50 flex items-end">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 transition-opacity"
+            onClick={() => {
+              setCourseModalOpen(false)
+              setSearchCourse('')
+            }}
+          />
+          
+          {/* Bottom Sheet */}
+          <div className="relative w-full bg-white rounded-t-3xl shadow-2xl max-h-[80vh] flex flex-col animate-in slide-in-from-bottom-5">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+              <h3 className="text-base font-bold text-gray-900">Select Course</h3>
+              <button
+                onClick={() => {
+                  setCourseModalOpen(false)
+                  setSearchCourse('')
+                }}
+                className="text-gray-400 hover:text-gray-600 text-xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Search */}
+            <div className="px-6 py-3 border-b border-gray-100 flex-shrink-0">
+              <input
+                type="text"
+                placeholder="🔍 Search course..."
+                value={searchCourse}
+                onChange={(e) => setSearchCourse(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green-500 transition-colors"
+              />
+            </div>
+
+            {/* Course List */}
+            <div className="overflow-y-auto flex-1">
+              {filteredCourses.length === 0 ? (
+                <div className="flex items-center justify-center py-12">
+                  <p className="text-gray-400 text-sm">No courses found</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {filteredCourses.map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => handleSelectCourse(c.title)}
+                      className={`w-full px-6 py-4 text-left flex items-center justify-between hover:bg-green-50 transition-colors ${
+                        form.course === c.title ? 'bg-green-50 border-l-4 border-green-600' : ''
+                      }`}
+                    >
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">{c.title}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{c.duration}</p>
+                      </div>
+                      {form.course === c.title && (
+                        <span className="text-green-600 text-lg">✓</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* State Bottom Sheet Modal */}
+      {stateModalOpen && (
+        <div className="sm:hidden fixed inset-0 z-50 flex items-end">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 transition-opacity"
+            onClick={() => {
+              setStateModalOpen(false)
+              setSearchState('')
+            }}
+          />
+          
+          {/* Bottom Sheet */}
+          <div className="relative w-full bg-white rounded-t-3xl shadow-2xl max-h-[80vh] flex flex-col animate-in slide-in-from-bottom-5">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+              <h3 className="text-base font-bold text-gray-900">Select State</h3>
+              <button
+                onClick={() => {
+                  setStateModalOpen(false)
+                  setSearchState('')
+                }}
+                className="text-gray-400 hover:text-gray-600 text-xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Search */}
+            <div className="px-6 py-3 border-b border-gray-100 flex-shrink-0">
+              <input
+                type="text"
+                placeholder="🔍 Search state..."
+                value={searchState}
+                onChange={(e) => setSearchState(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green-500 transition-colors"
+              />
+            </div>
+
+            {/* State List */}
+            <div className="overflow-y-auto flex-1">
+              {filteredStates.length === 0 ? (
+                <div className="flex items-center justify-center py-12">
+                  <p className="text-gray-400 text-sm">No states found</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {filteredStates.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => handleSelectState(s)}
+                      className={`w-full px-6 py-3.5 text-left flex items-center justify-between hover:bg-green-50 transition-colors ${
+                        form.state === s ? 'bg-green-50 border-l-4 border-green-600' : ''
+                      }`}
+                    >
+                      <p className="text-sm font-medium text-gray-900">{s}</p>
+                      {form.state === s && (
+                        <span className="text-green-600 text-lg">✓</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

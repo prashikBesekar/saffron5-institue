@@ -43,6 +43,7 @@ function CTASection() {
         <div className="flex flex-wrap gap-3 justify-center mb-10">
           <Link
             to="/apply"
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             className="inline-flex items-center gap-2 bg-amber-400 text-green-900 font-bold text-sm px-8 py-4 rounded-xl hover:bg-amber-300 active:scale-95 transition-all duration-200 shadow-lg shadow-amber-400/20"
           >
             Apply for a Course
