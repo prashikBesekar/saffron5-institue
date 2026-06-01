@@ -9,12 +9,26 @@ const statusColors = {
   enrolled: "bg-green-50 text-green-700 border border-green-100",
   rejected: "bg-red-50 text-red-600 border border-red-100",
 };
+
 const statusIcons = {
   new: "🆕",
   contacted: "📞",
   enrolled: "🎓",
   rejected: "❌",
 };
+
+const iconOptions = [
+  "📝",
+  "💆‍♀️",
+  "🌿",
+  "🥗",
+  "🧘",
+  "💊",
+  "🏃",
+  "🔬",
+  "❤️",
+  "🌱",
+];
 
 const managedCourses = [
   { slug: "diploma-naturopathy", title: "Diploma N.D." },
@@ -246,6 +260,28 @@ function AdminDashboard() {
   });
   const [videoLoading, setVideoLoading] = useState(false);
 
+  // Blog State
+  const [blogTab, setBlogTab] = useState("list");
+  const [adminBlogs, setAdminBlogs] = useState([]);
+  const [blogTotal, setBlogTotal] = useState(0);
+  const [blogSearch, setBlogSearch] = useState("");
+  const [blogLoading, setBlogLoading] = useState(false);
+  const [newBlog, setNewBlog] = useState({
+    title: "",
+    content: "",
+    excerpt: "",
+    category: "",
+    language: "hindi",
+    icon: "📝",
+    tags: "",
+    status: "published",
+    image: "",
+    imageCaption: "",
+    author: "Saffron5 Institute",
+  });
+  const [bulkText, setBulkText] = useState("");
+  const [bulkLoading, setBulkLoading] = useState(false);
+
   const loadCourseModules = async (slug) => {
     try {
       setVideoLoading(true);
@@ -319,9 +355,153 @@ function AdminDashboard() {
     }
   };
 
+  // Blog functions
+  const loadAdminBlogs = async () => {
+    try {
+      setBlogLoading(true);
+      const params = new URLSearchParams({
+        page: 1,
+        limit: 20,
+        ...(blogSearch && { search: blogSearch }),
+      });
+      const data = await api(`/blogs/admin/all?${params}`, "GET", null, token);
+      setAdminBlogs(data.blogs || []);
+      setBlogTotal(data.total || 0);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setBlogLoading(false);
+    }
+  };
+
+  const publishBlog = async () => {
+    if (!newBlog.title.trim()) return alert("Enter blog title!");
+    if (!newBlog.content.trim()) return alert("Enter blog content!");
+
+    try {
+      const tagsArray = newBlog.tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+
+      const payload = {
+        title: newBlog.title.trim(),
+        content: newBlog.content.trim(),
+        category: newBlog.category.trim() || "General",
+        language: newBlog.language,
+        icon: newBlog.icon || "📝",
+        status: newBlog.status,
+        author: newBlog.author.trim() || "Saffron5 Institute",
+        tags: tagsArray,
+      };
+
+      // Only add optional fields if they have values
+      if (newBlog.excerpt.trim()) payload.excerpt = newBlog.excerpt.trim();
+      if (newBlog.image.trim()) payload.image = newBlog.image.trim();
+      if (newBlog.imageCaption.trim())
+        payload.imageCaption = newBlog.imageCaption.trim();
+
+      console.log("Sending payload:", payload);
+
+      const data = await api("/blogs", "POST", payload, token);
+
+      setNewBlog({
+        title: "",
+        content: "",
+        excerpt: "",
+        category: "",
+        language: "hindi",
+        icon: "📝",
+        tags: "",
+        status: "published",
+        image: "",
+        imageCaption: "",
+        author: "Saffron5 Institute",
+      });
+      await loadAdminBlogs();
+      alert("✅ Blog published!");
+    } catch (err) {
+      console.error("Publish error:", err);
+      alert("Failed: " + err.message);
+    }
+  };
+
+  const deleteBlog = async (id) => {
+    if (!window.confirm("Delete this blog?")) return;
+    try {
+      await api(`/blogs/${id}`, "DELETE", null, token);
+      await loadAdminBlogs();
+    } catch (err) {
+      alert("Failed to delete.");
+    }
+  };
+
+  const bulkUpload = async () => {
+    if (!bulkText.trim()) return alert("Paste your blog data!");
+  
+    try {
+      setBulkLoading(true);
+      
+      // ✅ Better validation
+      const trimmed = bulkText.trim();
+      
+      if (!trimmed.startsWith('[')) {
+        return alert('❌ JSON must start with [ bracket\n\nExample:\n[\n  { "title": "...", "content": "..." }\n]');
+      }
+      
+      if (!trimmed.endsWith(']')) {
+        return alert('❌ JSON must end with ] bracket');
+      }
+      
+      // Parse JSON
+      let blogs;
+      try {
+        blogs = JSON.parse(trimmed);
+      } catch (parseErr) {
+        console.error('JSON Parse Error:', parseErr.message);
+        return alert(`❌ Invalid JSON format!\n\n${parseErr.message}\n\nMake sure:\n✓ All strings use double quotes\n✓ No trailing commas\n✓ Proper nesting`);
+      }
+      
+      if (!Array.isArray(blogs)) {
+        return alert('❌ Data must be an array! Start with [ and end with ]');
+      }
+      
+      if (blogs.length === 0) {
+        return alert('❌ Array is empty! Add at least 1 blog');
+      }
+      
+      // Validate each blog
+      const errors = [];
+      blogs.forEach((blog, i) => {
+        if (!blog.title) errors.push(`Blog ${i + 1}: Missing "title"`);
+        if (!blog.content) errors.push(`Blog ${i + 1}: Missing "content"`);
+      });
+      
+      if (errors.length > 0) {
+        return alert(`❌ Validation errors:\n\n${errors.join('\n')}`);
+      }
+      
+      console.log(`Valid JSON with ${blogs.length} blogs`);
+      
+      const data = await api("/blogs/bulk", "POST", { blogs }, token);
+      alert(`✅ ${data.uploaded} blogs uploaded!\n❌ ${data.failed} failed`);
+      setBulkText("");
+      await loadAdminBlogs();
+    } catch (err) {
+      console.error('Bulk upload error:', err);
+      alert(`❌ Upload failed:\n\n${err.message}`);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (tab === "blogs") loadAdminBlogs();
+  }, [tab]);
 
   const loadData = async () => {
     try {
@@ -393,9 +573,76 @@ function AdminDashboard() {
 
   const newCount = applications.filter((a) => a.status === "new").length;
 
+  // Add this function inside AdminDashboard() component
+
+  // In AdminDashboard.jsx, update handleImageUpload function:
+  
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0]
+  
+    if (!file) return
+  
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image too large! Max 5MB allowed')
+      return
+    }
+  
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Only image files allowed')
+      return
+    }
+  
+    try {
+      // Read and compress image
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const img = new Image()
+        img.onload = () => {
+          // Create canvas for compression
+          const canvas = document.createElement('canvas')
+          const ctx = canvas.getContext('2d')
+  
+          // Set max dimensions
+          const maxWidth = 1200
+          const maxHeight = 800
+          let width = img.width
+          let height = img.height
+  
+          if (width > height) {
+            if (width > maxWidth) {
+              height *= maxWidth / width
+              width = maxWidth
+            }
+          } else {
+            if (height > maxHeight) {
+              width *= maxHeight / height
+              height = maxHeight
+            }
+          }
+  
+          canvas.width = width
+          canvas.height = height
+          ctx.drawImage(img, 0, 0, width, height)
+  
+          // Convert to base64 with compression
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7)
+          setNewBlog({ ...newBlog, image: compressedBase64 })
+          console.log(' Image compressed and loaded')
+        }
+        img.src = event.target.result
+      }
+      reader.readAsDataURL(file)
+    } catch (error) {
+      console.error(' Image upload error:', error)
+      alert('Failed to upload image')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* ── Top Bar ───────────────────────────────────── */}
+      {/* Top Bar */}
       <header className="bg-green-900 border-b border-green-800 px-4 py-3">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -507,7 +754,7 @@ function AdminDashboard() {
           </div>
         )}
 
-        {/* ── How it works — collapsible on mobile ──────── */}
+        {/* How it works — collapsible on mobile */}
         <details className="bg-green-50 border border-green-100 rounded-2xl mb-5 group">
           <summary className="px-4 py-3.5 flex items-center justify-between cursor-pointer list-none select-none">
             <span className="text-green-800 text-xs font-bold flex items-center gap-1.5">
@@ -558,7 +805,7 @@ function AdminDashboard() {
           </div>
         </details>
 
-        {/* ── Tabs — scrollable row on mobile ───────────── */}
+        {/* Tabs — scrollable row on mobile  */}
         <div className="flex gap-2 mb-5 overflow-x-auto no-scrollbar pb-0.5">
           {[
             {
@@ -568,6 +815,7 @@ function AdminDashboard() {
             },
             { key: "students", label: "Students", count: null },
             { key: "courses", label: "Videos", count: null },
+            { key: "blogs", label: "📝 Blogs", count: null },
           ].map((t) => (
             <button
               key={t.key}
@@ -587,7 +835,7 @@ function AdminDashboard() {
           ))}
         </div>
 
-        {/* ── Loading ───────────────────────────────────── */}
+        {/*  Loading */}
         {loading ? (
           <div className="bg-white rounded-2xl border border-gray-100 flex flex-col items-center justify-center py-24 gap-3">
             <Spinner />
@@ -595,7 +843,7 @@ function AdminDashboard() {
           </div>
         ) : (
           <>
-            {/* ═══ Applications ═══════════════════════════ */}
+            {/* Applications */}
             {tab === "applications" && (
               <div>
                 {/* Search */}
@@ -659,7 +907,7 @@ function AdminDashboard() {
                   </div>
                 ) : (
                   <>
-                    {/* ── Mobile: card list ── */}
+                    {/* Mobile: card list */}
                     <div className="flex flex-col gap-3 md:hidden">
                       {filteredApps.map((app) => (
                         <AppCard
@@ -676,7 +924,7 @@ function AdminDashboard() {
                       </p>
                     </div>
 
-                    {/* ── Desktop: table ── */}
+                    {/* Desktop: table */}
                     <div className="hidden md:block bg-white rounded-2xl border border-gray-100 overflow-hidden">
                       <div className="overflow-x-auto">
                         <table className="w-full">
@@ -787,7 +1035,7 @@ function AdminDashboard() {
                                       onChange={(e) =>
                                         updateStatus(app._id, e.target.value)
                                       }
-                                      className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-green-500 bg-white w-full"
+                                      className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-green-500 bg-white"
                                     >
                                       <option value="new">🆕 New</option>
                                       <option value="contacted">
@@ -880,7 +1128,7 @@ function AdminDashboard() {
               </div>
             )}
 
-            {/* ═══ Students ═══════════════════════════════ */}
+            {/* Students */}
             {tab === "students" && (
               <div>
                 <div className="flex items-center justify-between mb-4">
@@ -1003,7 +1251,7 @@ function AdminDashboard() {
               </div>
             )}
 
-            {/* ═══ Videos ═════════════════════════════════ */}
+            {/* Videos */}
             {tab === "courses" && (
               <div className="flex flex-col gap-4">
                 <div className="bg-white rounded-2xl p-5 border border-gray-100">
@@ -1331,7 +1579,6 @@ function AdminDashboard() {
                                         {lesson.duration || "No duration"}
                                       </p>
                                     </div>
-                                    {/* Always visible on touch — no hover-only */}
                                     <button
                                       onClick={() =>
                                         deleteLesson(
@@ -1367,6 +1614,525 @@ function AdminDashboard() {
                           ))}
                         </div>
                       )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/*  Blogs */}
+            {tab === "blogs" && (
+              <div className="flex flex-col gap-6">
+                {/* Sub Tabs */}
+                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-0.5">
+                  {[
+                    { key: "list", label: "📋 All Blogs" },
+                    { key: "add", label: "✍️ Write Blog" },
+                    { key: "bulk", label: "📦 Bulk Upload" },
+                  ].map((t) => (
+                    <button
+                      key={t.key}
+                      onClick={() => {
+                        setBlogTab(t.key);
+                        if (t.key === "list") loadAdminBlogs();
+                      }}
+                      className={`px-4 py-2 rounded-full text-xs font-semibold transition-all whitespace-nowrap flex-shrink-0
+                        ${
+                          blogTab === t.key
+                            ? "bg-green-700 text-white"
+                            : "bg-white text-gray-600 border border-gray-200 hover:border-green-300"
+                        }`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* All Blogs List */}
+                {blogTab === "list" && (
+                  <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                    <div className="p-4 border-b border-gray-100 flex gap-3 items-center">
+                      <input
+                        type="text"
+                        value={blogSearch}
+                        onChange={(e) => setBlogSearch(e.target.value)}
+                        placeholder="Search blogs..."
+                        className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green-500"
+                      />
+                      <button
+                        onClick={loadAdminBlogs}
+                        className="bg-green-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl"
+                      >
+                        Search
+                      </button>
+                      <span className="text-xs text-gray-400 flex-shrink-0">
+                        {blogTotal} total
+                      </span>
+                    </div>
+
+                    {blogLoading ? (
+                      <div className="p-10 text-center">
+                        <p className="text-gray-400 text-sm">
+                          ⏳ Loading blogs...
+                        </p>
+                      </div>
+                    ) : adminBlogs.length === 0 ? (
+                      <div className="p-10 text-center">
+                        <p className="text-4xl mb-2">📭</p>
+                        <p className="text-gray-400 text-sm">No blogs yet</p>
+                        <button
+                          onClick={() => setBlogTab("add")}
+                          className="mt-3 text-green-600 text-xs hover:underline"
+                        >
+                          Write your first blog →
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead className="bg-gray-50 border-b border-gray-100">
+                            <tr>
+                              {[
+                                "Title",
+                                "Category",
+                                "Language",
+                                "Status",
+                                "Views",
+                                "Date",
+                                "Action",
+                              ].map((h) => (
+                                <th
+                                  key={h}
+                                  className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase"
+                                >
+                                  {h}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {adminBlogs.map((blog) => (
+                              <tr
+                                key={blog._id}
+                                className="border-b border-gray-50 hover:bg-gray-50"
+                              >
+                                <td className="px-4 py-3">
+                                  <p className="text-sm font-medium text-gray-800 max-w-48 line-clamp-1">
+                                    {blog.title}
+                                  </p>
+                                </td>
+                                <td className="px-4 py-3 text-xs text-gray-600">
+                                  {blog.category}
+                                </td>
+                                <td className="px-4 py-3 text-xs text-gray-600 capitalize">
+                                  {blog.language}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span
+                                    className={`text-xs font-bold px-2 py-1 rounded-full
+                                    ${
+                                      blog.status === "published"
+                                        ? "bg-green-100 text-green-700"
+                                        : "bg-gray-100 text-gray-600"
+                                    }`}
+                                  >
+                                    {blog.status}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-xs text-gray-600">
+                                  {blog.views || 0}
+                                </td>
+                                <td className="px-4 py-3 text-xs text-gray-400">
+                                  {new Date(blog.createdAt).toLocaleDateString(
+                                    "en-IN",
+                                  )}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <button
+                                    onClick={() => deleteBlog(blog._id)}
+                                    className="text-red-400 hover:text-red-600 text-xs px-2 py-1 rounded hover:bg-red-50"
+                                  >
+                                    🗑️ Delete
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Write Blog */}
+                {blogTab === "add" && (
+                  <div className="bg-white rounded-2xl p-6 border border-gray-100">
+                    <h3 className="font-bold text-gray-900 text-base mb-5">
+                      ✍️ Write New Blog
+                    </h3>
+                    <div className="flex flex-col gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-xs font-semibold text-gray-500 block mb-1">
+                            Title *
+                          </label>
+                          <input
+                            type="text"
+                            value={newBlog.title}
+                            onChange={(e) =>
+                              setNewBlog({ ...newBlog, title: e.target.value })
+                            }
+                            placeholder="Blog title"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-gray-500 block mb-1">
+                            Category
+                          </label>
+                          <input
+                            type="text"
+                            value={newBlog.category}
+                            onChange={(e) =>
+                              setNewBlog({
+                                ...newBlog,
+                                category: e.target.value,
+                              })
+                            }
+                            placeholder="e.g. Pain Relief, Diet, Yoga"
+                            className={inputClass}
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                          <label className="text-xs font-semibold text-gray-500 block mb-1">
+                            Language
+                          </label>
+                          <select
+                            value={newBlog.language}
+                            onChange={(e) =>
+                              setNewBlog({
+                                ...newBlog,
+                                language: e.target.value,
+                              })
+                            }
+                            className={`${inputClass} cursor-pointer`}
+                          >
+                            <option value="hindi">Hindi</option>
+                            <option value="english">English</option>
+                            <option value="marathi">Marathi</option>
+                            <option value="gujarati">Gujarati</option>
+                            <option value="other">Other</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-gray-500 block mb-1">
+                            Icon
+                          </label>
+                          <select
+                            value={newBlog.icon}
+                            onChange={(e) =>
+                              setNewBlog({ ...newBlog, icon: e.target.value })
+                            }
+                            className={`${inputClass} cursor-pointer`}
+                          >
+                            {iconOptions.map((icon) => (
+                              <option key={icon} value={icon}>
+                                {icon}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-gray-500 block mb-1">
+                            Status
+                          </label>
+                          <select
+                            value={newBlog.status}
+                            onChange={(e) =>
+                              setNewBlog({ ...newBlog, status: e.target.value })
+                            }
+                            className={`${inputClass} cursor-pointer`}
+                          >
+                            <option value="published">Published</option>
+                            <option value="draft">Draft</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-gray-500 block mb-1">
+                          Tags (comma separated)
+                        </label>
+                        <input
+                          type="text"
+                          value={newBlog.tags}
+                          onChange={(e) =>
+                            setNewBlog({ ...newBlog, tags: e.target.value })
+                          }
+                          placeholder="health, yoga, diet, naturopathy"
+                          className={inputClass}
+                        />
+                      </div>
+
+                      {/* Cover Image */}
+                      <div>
+                        <label className="text-xs font-semibold text-gray-500 block mb-1">
+                          Cover Image (Upload or URL)
+                        </label>
+
+                        {/* Upload Button */}
+                        <div className="flex gap-2 mb-3">
+                          <label className="flex-1 cursor-pointer">
+                            <div className="bg-green-50 border-2 border-dashed border-green-300 rounded-xl px-4 py-6 text-center hover:bg-green-100 transition-colors">
+                              <svg
+                                width="24"
+                                height="24"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                className="mx-auto text-green-600 mb-2"
+                              >
+                                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                                <polyline points="17 8 12 3 7 8" />
+                                <line x1="12" y1="3" x2="12" y2="15" />
+                              </svg>
+                              <p className="text-xs font-semibold text-green-700">
+                                {newBlog.image
+                                  ? "✅ Image Selected"
+                                  : "📸 Click to Upload"}
+                              </p>
+                              <p className="text-[10px] text-green-600 mt-1">
+                                JPG, PNG (max 5MB)
+                              </p>
+                            </div>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => handleImageUpload(e)}
+                              className="hidden"
+                            />
+                          </label>
+                        </div>
+
+                        {/* URL Input */}
+                        <div>
+                          <p className="text-xs text-gray-400 mb-2">
+                            Or paste image URL:
+                          </p>
+                          <input
+                            type="text"
+                            value={newBlog.image}
+                            onChange={(e) =>
+                              setNewBlog({ ...newBlog, image: e.target.value })
+                            }
+                            placeholder="https://images.unsplash.com/... (optional)"
+                            className={inputClass}
+                          />
+                        </div>
+
+                        {/* Image Preview */}
+                        {newBlog.image && (
+                          <div className="mt-3 relative">
+                            <img
+                              src={newBlog.image}
+                              alt="preview"
+                              className="w-full h-40 object-cover rounded-xl border border-gray-100"
+                              onError={(e) => (e.target.style.display = "none")}
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setNewBlog({ ...newBlog, image: "" })
+                              }
+                              className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-lg hover:bg-red-600"
+                            >
+                              <svg
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2.5"
+                              >
+                                <line x1="18" y1="6" x2="6" y2="18" />
+                                <line x1="6" y1="6" x2="18" y2="18" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      {/* Image Caption */}
+                      <div>
+                        <label className="text-xs font-semibold text-gray-500 block mb-1">
+                          Image Caption (optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={newBlog.imageCaption}
+                          onChange={(e) =>
+                            setNewBlog({
+                              ...newBlog,
+                              imageCaption: e.target.value,
+                            })
+                          }
+                          placeholder="Photo description or credit"
+                          className={inputClass}
+                        />
+                      </div>
+                      {/* Author */}
+                      <div>
+                        <label className="text-xs font-semibold text-gray-500 block mb-1">
+                          Author Name
+                        </label>
+                        <input
+                          type="text"
+                          value={newBlog.author}
+                          onChange={(e) =>
+                            setNewBlog({ ...newBlog, author: e.target.value })
+                          }
+                          placeholder="Dr. Name or Saffron5 Institute"
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-gray-500 block mb-1">
+                          Short Excerpt (optional — auto generated if empty)
+                        </label>
+                        <input
+                          type="text"
+                          value={newBlog.excerpt}
+                          onChange={(e) =>
+                            setNewBlog({ ...newBlog, excerpt: e.target.value })
+                          }
+                          placeholder="Brief description shown on blog listing..."
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-gray-500 block mb-1">
+                          Content * (paste full article here)
+                        </label>
+                        <textarea
+                          value={newBlog.content}
+                          onChange={(e) =>
+                            setNewBlog({ ...newBlog, content: e.target.value })
+                          }
+                          rows={15}
+                          placeholder="Paste your full blog article content here...
+
+                            Works with Hindi, English, Marathi, Gujarati text.
+                            Just copy paste from Word / WhatsApp / anywhere!"
+                          className={`${inputClass} resize-none font-mono`}
+                        />
+                        <p className="text-xs text-gray-400 mt-1">
+                          {newBlog.content.length} characters
+                        </p>
+                      </div>
+                      <button
+                        onClick={publishBlog}
+                        className="w-full bg-green-700 hover:bg-green-800 text-white font-bold text-sm py-4 rounded-xl transition-colors"
+                      >
+                        🚀 Publish Blog
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Bulk Upload */}
+                {blogTab === "bulk" && (
+                  <div className="flex flex-col gap-5">
+                    {/* Instructions */}
+                    <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5">
+                      <h3 className="font-bold text-blue-900 text-sm mb-3">
+                        📦 How to Bulk Upload 500 Blogs
+                      </h3>
+                      <div className="flex flex-col gap-2 text-xs text-blue-700">
+                        <p>1. Format your blogs as JSON array below</p>
+                        <p>
+                          2. Each blog needs: title, content, category, language
+                        </p>
+                        <p>3. Paste the JSON and click "Upload All"</p>
+                        <p>4. All blogs upload at once! ✅</p>
+                      </div>
+                      <div className="mt-3 bg-white rounded-xl p-3 border border-blue-100">
+                        <p className="text-xs font-semibold text-gray-600 mb-2">
+                          Example Format:
+                        </p>
+                        <pre className="text-xs text-gray-500 overflow-x-auto">{`[
+                              {
+                                "title": "गर्दन दर्द से राहत",
+                                "content": "पूरा आर्टिकल यहाँ...",
+                                "category": "Pain Relief",
+                                "language": "hindi",
+                                "icon": "💆‍♀️",
+                                "tags": ["health", "pain", "yoga"]
+                              },
+                              {
+                                "title": "Healthy Diet Tips",
+                                "content": "Full article here...",
+                                "category": "Diet",
+                                "language": "english",
+                                "icon": "🥗",
+                                "tags": ["diet", "health"]
+                              }
+                            ]`}</pre>
+                      </div>
+                    </div>
+
+                    {/* Bulk Upload Form */}
+                    <div className="bg-white rounded-2xl p-6 border border-gray-100">
+                      <h3 className="font-bold text-gray-900 text-sm mb-4">
+                        Paste Your Blog Data (JSON format)
+                      </h3>
+                      <textarea
+                        value={bulkText}
+                        onChange={(e) => setBulkText(e.target.value)}
+                        rows={20}
+                        placeholder='[
+                        {
+                          "title": "Your Blog Title",
+                          "content": "Full article content...",
+                          "category": "Health",
+                          "language": "hindi"
+                        }
+                      ]'
+                        className={`${inputClass} resize-none font-mono`}
+                      />
+                      <div className="flex items-center justify-between mt-3">
+                        <p className="text-xs text-gray-400">
+                          {bulkText.length > 0
+                            ? `${bulkText.length} characters pasted`
+                            : "Paste JSON data above"}
+                        </p>
+                        <button
+                          onClick={bulkUpload}
+                          disabled={bulkLoading || !bulkText.trim()}
+                          className={`font-bold text-sm px-6 py-3 rounded-xl transition-all text-white
+                            ${
+                              bulkLoading || !bulkText.trim()
+                                ? "bg-gray-400 cursor-not-allowed"
+                                : "bg-green-700 hover:bg-green-800"
+                            }`}
+                        >
+                          {bulkLoading
+                            ? "⏳ Uploading..."
+                            : "📦 Upload All Blogs"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* CSV Helper Note */}
+                    <div className="bg-amber-50 border border-amber-100 rounded-2xl p-5">
+                      <h3 className="font-bold text-amber-800 text-sm mb-2">
+                        💡 Have data in Excel/Word/WhatsApp?
+                      </h3>
+                      <p className="text-amber-700 text-xs leading-relaxed">
+                        Tell me what format your 500 blogs are in and I'll write
+                        a script to convert them to JSON automatically! Just
+                        share a sample of your data.
+                      </p>
                     </div>
                   </div>
                 )}

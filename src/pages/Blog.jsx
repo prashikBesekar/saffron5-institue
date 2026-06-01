@@ -1,236 +1,377 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import blogs from '../data/blogs';
+import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
+import api from '../data/api'
 
-// Collect unique categories
-const allCategories = ['All', ...Array.from(new Set(blogs.map((b) => b.category)))];
+const languageLabels = {
+  hindi: '🇮🇳 HI',
+  english: '🇬🇧 EN',
+  marathi: '🟠 MR',
+  gujarati: '🟡 GJ',
+  other: '🌐',
+}
 
-// Per-category accent colors
-const categoryColors = {
-  All: 'bg-green-700 text-white',
-  Naturopathy: 'bg-emerald-100 text-emerald-800',
-  Yoga: 'bg-violet-100 text-violet-800',
-  Diabetes: 'bg-rose-100 text-rose-800',
-  Ayurveda: 'bg-amber-100 text-amber-800',
-  Nutrition: 'bg-orange-100 text-orange-800',
-  Physiotherapy: 'bg-sky-100 text-sky-800',
-};
+const gradients = [
+  'from-green-800 to-emerald-600',
+  'from-green-900 to-teal-700',
+  'from-emerald-800 to-green-600',
+  'from-teal-800 to-green-700',
+  'from-green-700 to-emerald-800',
+  'from-emerald-900 to-teal-600',
+]
 
-const getCategoryStyle = (cat) =>
-  categoryColors[cat] || 'bg-gray-100 text-gray-700';
+const icons = ['🌿', '💆‍♀️', '🧘', '🥗', '💊', '🏃', '🔬', '❤️', '🌱', '📝']
+
+function CoverImage({ blog, index, className }) {
+  if (blog.image) {
+    return (
+      <img
+        src={blog.image}
+        alt={blog.title}
+        className={`${className} object-cover`}
+        onError={e => {
+          e.target.style.display = 'none'
+          e.target.nextSibling.style.display = 'flex'
+        }}
+      />
+    )
+  }
+  return (
+    <div className={`${className} bg-gradient-to-br ${gradients[index % gradients.length]} flex flex-col items-center justify-center`}>
+      <span className="text-5xl mb-2 opacity-80">{blog.icon || icons[index % icons.length]}</span>
+    </div>
+  )
+}
 
 function Blog() {
-  const featured = blogs[0];
-  const [activeCategory, setActiveCategory] = useState('All');
+  const [blogs, setBlogs] = useState([])
+  const [featured, setFeatured] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [categories, setCategories] = useState([])
+  const [activeCategory, setActiveCategory] = useState('All')
+  const [total, setTotal] = useState(0)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
 
-  const filtered =
-    activeCategory === 'All'
-      ? blogs.slice(1)
-      : blogs.slice(1).filter((b) => b.category === activeCategory);
+  useEffect(() => {
+    loadMeta()
+  }, [])
+
+  useEffect(() => {
+    loadBlogs()
+  }, [activeCategory, currentPage, search])
+
+  const loadMeta = async () => {
+    try {
+      const data = await api('/blogs/meta/categories')
+      setCategories(['All', ...(data.categories || [])])
+      setTotal(data.total || 0)
+    } catch {
+      setCategories(['All'])
+    }
+  }
+
+  const loadBlogs = async () => {
+    try {
+      setLoading(true)
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: 10,
+        ...(activeCategory !== 'All' && { category: activeCategory }),
+        ...(search && { search }),
+      })
+      const data = await api(`/blogs?${params}`)
+      setBlogs(data.blogs || [])
+      setTotalPages(data.pages || 1)
+      setTotal(data.total || 0)
+      if (currentPage === 1 && data.blogs?.length > 0) {
+        setFeatured(data.blogs[0])
+      }
+    } catch {
+      setBlogs([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSearch = e => {
+    e.preventDefault()
+    setSearch(searchInput)
+    setCurrentPage(1)
+  }
+
+  const listBlogs = featured && currentPage === 1 && !search && activeCategory === 'All'
+    ? blogs.slice(1)
+    : blogs
 
   return (
-    <div className="min-h-screen bg-[#f8f6f1]">
+    <div className="min-h-screen bg-white">
 
-      {/* ── Hero / Featured ── */}
-      <div className="bg-green-900 relative overflow-hidden">
+      {/* Top bar — Medium style */}
+      <div className="border-b border-gray-100 sticky top-16 z-30 bg-white/95 backdrop-blur-sm">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
 
-        {/* Grain overlay */}
-        <div
-          className="absolute inset-0 opacity-[0.04] pointer-events-none z-10"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
-          }}
-        />
-
-        <Link to={`/blog/${featured.slug}`} className="group block">
-
-          {/* ── Mobile hero image ── */}
-          <div className="relative md:hidden h-56 overflow-hidden">
-            <img
-              src={featured.image}
-              alt={featured.title}
-              className="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-green-900 via-green-900/50 to-transparent" />
-            <div className="absolute top-4 left-4 flex items-center gap-1.5 bg-amber-400 text-green-900 text-[10px] font-extrabold tracking-[0.15em] uppercase px-3 py-1.5 rounded-full shadow">
-              <span className="w-1.5 h-1.5 bg-green-900 rounded-full" />
-              Featured
-            </div>
-          </div>
-
-          <div className="max-w-7xl mx-auto grid md:grid-cols-2 md:min-h-[88vh]">
-
-            {/* Left — text */}
-            <div className="flex flex-col justify-center px-6 py-10 md:px-14 lg:px-20 relative z-10">
-
-              {/* Featured badge — desktop only */}
-              <div className="hidden md:flex items-center gap-1.5 bg-amber-400 text-green-900 text-[10px] font-extrabold tracking-[0.15em] uppercase px-3 py-1.5 rounded-full w-fit mb-5 shadow">
-                <span className="w-1.5 h-1.5 bg-green-900 rounded-full" />
-                Featured Post
-              </div>
-
-              {/* Category label */}
-              <div className="flex items-center gap-2 mb-4">
-                <span className="w-6 h-px bg-amber-400" />
-                <span className="text-amber-400 text-xs font-bold tracking-[0.2em] uppercase">
-                  {featured.category}
-                </span>
-              </div>
-
-              {/* Title */}
-              <h1
-                className="text-white font-extrabold leading-[1.08] tracking-tight mb-5"
-                style={{ fontSize: 'clamp(1.7rem, 4vw, 3.25rem)' }}
-              >
-                {featured.title}
-              </h1>
-
-              <p className="text-green-200/70 text-base leading-relaxed mb-7 max-w-md">
-                {featured.excerpt}
-              </p>
-
-              {/* Meta */}
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 text-green-300/60 text-sm">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
-                  </svg>
-                  {featured.date}
-                </div>
-                <span className="text-green-700">·</span>
-                <div className="flex items-center gap-2 text-green-300/60 text-sm">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                  </svg>
-                  {featured.readTime}
-                </div>
-              </div>
-
-              {/* CTA */}
-              <div className="mt-8">
-                <span className="inline-flex items-center gap-2 text-sm font-bold text-white border border-white/20 px-5 py-2.5 rounded-full group-hover:bg-white group-hover:text-green-900 transition-all duration-300">
-                  Read Article
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M5 12h14M12 5l7 7-7 7"/>
-                  </svg>
-                </span>
-              </div>
-            </div>
-
-            {/* Right — image desktop */}
-            <div className="relative hidden md:block">
-              <img
-                src={featured.image}
-                alt={featured.title}
-                className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-70 group-hover:scale-[1.03] transition-all duration-700"
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-green-900 via-green-900/30 to-transparent" />
-            </div>
-
-          </div>
-        </Link>
-      </div>
-
-      {/* ── Sticky category filter tabs ── */}
-      <div className="sticky top-0 z-30 bg-[#f8f6f1]/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-5 md:px-10">
-          <div className="flex items-center gap-2 overflow-x-auto py-3 no-scrollbar">
-            {allCategories.map((cat) => (
+          {/* Category pills */}
+          <div className="flex gap-2 overflow-x-auto no-scrollbar">
+            {categories.map(cat => (
               <button
                 key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`flex-shrink-0 text-xs font-bold tracking-wide px-4 py-2 rounded-full transition-all duration-200
+                onClick={() => { setActiveCategory(cat); setCurrentPage(1) }}
+                className={`flex-shrink-0 text-xs font-medium px-4 py-1.5 rounded-full border transition-all
                   ${activeCategory === cat
-                    ? 'bg-green-700 text-white shadow-sm'
-                    : 'bg-white text-gray-500 border border-gray-200 hover:border-green-300 hover:text-green-700'
+                    ? 'border-gray-900 text-gray-900 bg-gray-900 text-white'
+                    : 'border-gray-200 text-gray-500 hover:border-gray-400'
                   }`}
               >
                 {cat}
               </button>
             ))}
           </div>
-        </div>
-      </div>
 
-      {/* ── Section header ── */}
-      <div className="max-w-7xl mx-auto px-5 md:px-10 pt-12 pb-4 flex items-end justify-between">
-        <div>
-          <p className="text-xs font-bold tracking-[0.18em] uppercase text-green-700 mb-1">Latest from us</p>
-          <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">
-            {activeCategory === 'All' ? 'All Articles' : activeCategory}
-            <span className="ml-2 text-base font-semibold text-gray-400">({filtered.length})</span>
-          </h2>
-        </div>
-        <div className="hidden sm:block w-24 h-px bg-gray-300" />
-      </div>
-
-      {/* ── Article grid ── */}
-      {filtered.length === 0 ? (
-        <div className="max-w-7xl mx-auto px-5 md:px-10 py-20 text-center text-gray-400 text-sm">
-          No articles in this category yet.
-        </div>
-      ) : (
-        <div className="max-w-7xl mx-auto px-5 md:px-10 py-6 pb-20">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filtered.map((blog, i) => (
-              <Link
-                key={blog.id}
-                to={`/blog/${blog.slug}`}
-                className="group bg-white rounded-2xl overflow-hidden border border-gray-100 hover:border-green-200 hover:shadow-xl transition-all duration-300 flex flex-col"
+          {/* Search */}
+          <form onSubmit={handleSearch} className="flex gap-2 flex-shrink-0">
+            <input
+              type="text"
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
+              placeholder="Search..."
+              className="border border-gray-200 rounded-full px-4 py-1.5 text-sm focus:outline-none focus:border-gray-400 w-36 lg:w-48"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => { setSearch(''); setSearchInput(''); setCurrentPage(1) }}
+                className="text-xs text-gray-400 hover:text-gray-600"
               >
-                {/* Image */}
-                <div className="relative overflow-hidden h-52 flex-shrink-0">
-                  <img
-                    src={blog.image}
-                    alt={blog.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  {/* Post number */}
-                  <div className="absolute top-3 left-3 w-8 h-8 bg-green-900/80 backdrop-blur-sm text-white text-xs font-extrabold rounded-full flex items-center justify-center">
-                    {String(i + 1).padStart(2, '0')}
+                ✕
+              </button>
+            )}
+          </form>
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-4">
+
+        {/* Featured — Medium hero style */}
+        {featured && !search && activeCategory === 'All' && currentPage === 1 && (
+          <Link
+            to={`/blog/${featured.slug}`}
+            className="group block py-12 border-b border-gray-100"
+          >
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
+
+              {/* Text side */}
+              <div>
+                {/* Author */}
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-7 h-7 bg-green-700 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                    {(featured.author || 'S').charAt(0).toUpperCase()}
                   </div>
-                  {/* Category badge */}
-                  <div className={`absolute top-3 right-3 text-[10px] font-bold tracking-wide px-2.5 py-1 rounded-full ${getCategoryStyle(blog.category)}`}>
-                    {blog.category}
-                  </div>
+                  <span className="text-sm text-gray-700 font-medium">
+                    {featured.author || 'Saffron5 Institute'}
+                  </span>
                 </div>
 
-                {/* Content */}
-                <div className="flex flex-col flex-1 p-5">
-                  <p className="text-xs text-gray-400 mb-2">{blog.date}</p>
+                {/* Title */}
+                <h1 className="text-3xl lg:text-4xl font-extrabold text-gray-900 leading-tight mb-3 group-hover:text-green-800 transition-colors">
+                  {featured.title}
+                </h1>
 
-                  <h3 className="text-base font-bold text-gray-900 leading-snug group-hover:text-green-800 transition-colors mb-2 line-clamp-2">
+                {/* Excerpt */}
+                <p className="text-gray-500 text-lg leading-relaxed mb-6 line-clamp-3">
+                  {featured.excerpt}
+                </p>
+
+                {/* Meta */}
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="text-xs font-bold bg-green-100 text-green-800 px-3 py-1 rounded-full">
+                    {featured.category}
+                  </span>
+                  {featured.language && featured.language !== 'english' && (
+                    <span className="text-xs text-gray-400">
+                      {languageLabels[featured.language]}
+                    </span>
+                  )}
+                  <span className="text-xs text-gray-400">
+                    {new Date(featured.createdAt).toLocaleDateString('en-IN', {
+                      day: 'numeric', month: 'long', year: 'numeric'
+                    })}
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    · {Math.max(1, Math.ceil((featured.content?.length || 500) / 1000))} min read
+                  </span>
+                  <span className="text-xs text-gray-400">· 👁 {featured.views}</span>
+                </div>
+              </div>
+
+              {/* Image side */}
+              <div className="relative overflow-hidden rounded-2xl aspect-video lg:aspect-square">
+                {featured.image ? (
+                  <img
+                    src={featured.image}
+                    alt={featured.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                ) : (
+                  <div className={`w-full h-full bg-gradient-to-br ${gradients[0]} flex items-center justify-center`}>
+                    <span className="text-8xl opacity-40">{featured.icon || '📝'}</span>
+                  </div>
+                )}
+                {/* Featured badge */}
+                <div className="absolute top-4 left-4 bg-amber-400 text-gray-900 text-xs font-extrabold px-3 py-1.5 rounded-full">
+                  Featured
+                </div>
+              </div>
+
+            </div>
+          </Link>
+        )}
+
+        {/* Section header */}
+        {!search && (
+          <div className="py-8 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest">
+              {activeCategory === 'All' ? 'Latest Articles' : activeCategory}
+              <span className="ml-2 normal-case font-normal">({total})</span>
+            </h2>
+          </div>
+        )}
+
+        {search && (
+          <div className="py-6">
+            <h2 className="text-xl font-bold text-gray-900">
+              Results for "<span className="text-green-700">{search}</span>"
+            </h2>
+            <p className="text-gray-400 text-sm mt-1">{total} articles found</p>
+          </div>
+        )}
+
+        {/* Blog List — Medium style */}
+        {loading ? (
+          <div className="py-20 flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-green-200 border-t-green-700 rounded-full animate-spin" />
+            <p className="text-gray-400 text-sm">Loading articles...</p>
+          </div>
+        ) : listBlogs.length === 0 && !featured ? (
+          <div className="py-20 text-center">
+            <p className="text-5xl mb-4">📭</p>
+            <p className="text-gray-500">No articles yet.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {listBlogs.map((blog, i) => (
+              <Link
+                key={blog._id}
+                to={`/blog/${blog.slug}`}
+                className="group flex gap-6 py-8 hover:bg-gray-50/50 rounded-xl -mx-2 px-2 transition-colors"
+              >
+                {/* Left — text */}
+                <div className="flex-1 min-w-0">
+
+                  {/* Author + date */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-6 h-6 bg-green-700 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
+                      {(blog.author || 'S').charAt(0).toUpperCase()}
+                    </div>
+                    <span className="text-xs text-gray-600 font-medium">
+                      {blog.author || 'Saffron5 Institute'}
+                    </span>
+                    <span className="text-gray-300 text-xs">·</span>
+                    <span className="text-xs text-gray-400">
+                      {new Date(blog.createdAt).toLocaleDateString('en-IN', {
+                        day: 'numeric', month: 'short'
+                      })}
+                    </span>
+                  </div>
+
+                  {/* Title */}
+                  <h2 className="text-base lg:text-lg font-bold text-gray-900 leading-snug mb-2 group-hover:text-green-800 transition-colors line-clamp-2">
                     {blog.title}
-                  </h3>
+                  </h2>
 
-                  <p className="text-gray-500 text-sm leading-relaxed line-clamp-2 flex-1">
+                  {/* Excerpt */}
+                  <p className="text-gray-500 text-sm leading-relaxed line-clamp-2 mb-4">
                     {blog.excerpt}
                   </p>
 
                   {/* Footer */}
-                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-50">
-                    <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                      </svg>
-                      {blog.readTime}
-                    </div>
-                    <span className="inline-flex items-center gap-1 text-xs font-bold text-green-700 group-hover:gap-2 transition-all">
-                      Read
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M5 12h14M12 5l7 7-7 7"/>
-                      </svg>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-semibold bg-gray-100 text-gray-600 px-3 py-1 rounded-full">
+                      {blog.category}
+                    </span>
+                    {blog.language && blog.language !== 'english' && (
+                      <span className="text-xs text-gray-400">
+                        {languageLabels[blog.language]}
+                      </span>
+                    )}
+                    <span className="text-xs text-gray-400">
+                      {Math.max(1, Math.ceil((blog.content?.length || 500) / 1000))} min read
+                    </span>
+                    <span className="text-xs text-gray-400">· 👁 {blog.views}</span>
+
+                    {/* Tags */}
+                    {blog.tags?.slice(0, 2).map(tag => (
+                      <span key={tag} className="text-xs text-gray-400">
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Right — thumbnail */}
+                <div className="flex-shrink-0 w-24 h-24 lg:w-32 lg:h-32 rounded-xl overflow-hidden">
+                  {blog.image ? (
+                    <img
+                      src={blog.image}
+                      alt={blog.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      onError={e => {
+                        e.target.style.display = 'none'
+                        e.target.nextSibling.style.display = 'flex'
+                      }}
+                    />
+                  ) : null}
+                  <div
+                    className={`w-full h-full bg-gradient-to-br ${gradients[(i + 1) % gradients.length]} ${blog.image ? 'hidden' : 'flex'} items-center justify-center`}
+                  >
+                    <span className="text-3xl opacity-70">
+                      {blog.icon || icons[i % icons.length]}
                     </span>
                   </div>
                 </div>
+
               </Link>
             ))}
           </div>
-        </div>
-      )}
+        )}
 
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-3 py-12 border-t border-gray-100">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-5 py-2 rounded-full text-sm font-medium border border-gray-200 disabled:opacity-40 hover:bg-gray-50 transition-colors"
+            >
+              ← Previous
+            </button>
+            <span className="text-sm text-gray-400">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-5 py-2 rounded-full text-sm font-medium border border-gray-200 disabled:opacity-40 hover:bg-gray-50 transition-colors"
+            >
+              Next →
+            </button>
+          </div>
+        )}
+
+      </div>
     </div>
-  );
+  )
 }
 
-export default Blog;
+export default Blog
