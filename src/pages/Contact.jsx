@@ -29,7 +29,7 @@ const contactCards = [
     title: 'Our Branches',
     lines: [
       'Head Office — Mumbai',
-      '2nd Branch — Sambhaji Nagar',
+      '2nd Branch — Chhatrapati Sambhaji Nagar',
       '3rd Branch — Nagpur',
       '4th Branch — Amravati (Opening Soon)',
     ],

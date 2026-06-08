@@ -197,7 +197,7 @@ function Footer() {
                 <circle cx="12" cy="10" r="3" />
               </svg>
               <span className="leading-relaxed">
-                Head of Branch 1. Mumbai 2nd Branch - Sambhaji Nagar 3rd Branch
+                Head of Branch 1. Mumbai 2nd Branch - Chhatrapati Sambhaji Nagar 3rd Branch
                 - Nagpur 4th Branch - Amravati District Opening
               </span>
             </li>
