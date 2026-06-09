@@ -1,4 +1,6 @@
-const BASE_URL = 'http://localhost:5000/api'
+// Dynamically check for Vite environment variable, fallback to localhost
+const PRODUCTION_URL = import.meta.env.VITE_API_URL; 
+const BASE_URL = PRODUCTION_URL ? `${PRODUCTION_URL}/api` : 'http://localhost:5000/api';
 
 // Helper to make API calls
 const api = async (endpoint, method = 'GET', body = null, token = null) => {
